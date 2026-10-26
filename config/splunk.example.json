@@ -1,0 +1,7 @@
+{
+  "SPLUNK_RUM_ACCESS_TOKEN": "YOUR-RUM-ACCESS-TOKEN",
+  "SPLUNK_REALM": "us0",
+  "SPLUNK_APP_NAME": "splunk-sample-app-flutter",
+  "SPLUNK_DEPLOYMENT_ENVIRONMENT": "development",
+  "DEMO_BASE_URL": "https://httpbin.org"
+}

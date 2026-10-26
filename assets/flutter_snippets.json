@@ -1,0 +1,66 @@
+[
+  {
+    "name": "App Start",
+    "content": "WidgetsFlutterBinding.ensureInitialized();\nawait SplunkRum.instance.install(\n  agentConfiguration: AgentConfiguration(\n    endpoint: EndpointConfiguration.forRum(\n      realm: realm,\n      rumAccessToken: rumAccessToken,\n    ),\n    appName: appName,\n    deploymentEnvironment: deploymentEnvironment,\n  ),\n  moduleConfigurations: [\n    CrashReportsModuleConfiguration(),\n    NavigationModuleConfiguration(),\n    NetworkMonitorModuleConfiguration(),\n    SlowRenderingModuleConfiguration(),\n    AnrModuleConfiguration(),\n    SessionReplayModuleConfiguration(samplingRate: 1.0),\n  ],\n);\n// The module configuration only enables session replay; recording itself\n// must be started explicitly.\nawait SplunkSessionReplay.instance.start();\nrunApp(const MyApp());"
+  },
+  {
+    "name": "Screen transition tracking",
+    "content": "MaterialApp(\n  initialRoute: '/',\n  onGenerateRoute: routes,\n  navigatorObservers: [SplunkNavigatorObserver()],\n);"
+  },
+  {
+    "name": "Workflow label (SessionFrame equivalent)",
+    "content": "// Splunk has no renameable per-step label like AppDynamics' SessionFrame.\n// A named workflow span is the closest analog for labeling a step.\nfinal workflow = await SplunkRum.instance.customTracking.startWorkflow(\n  name: 'Journey Map Demo',\n);\n\n// Call this when the screen/flow ends (e.g. dispose(), route pop).\nawait workflow.end();"
+  },
+  {
+    "name": "Start next session",
+    "content": "// splunk_otel_flutter has no manual session-rollover API.\n// SplunkRum.instance.session only exposes read-only state:\nfinal id = await SplunkRum.instance.session.state.getId();\nfinal samplingRate = await SplunkRum.instance.session.state.getSamplingRate();"
+  },
+  {
+    "name": "Leaving a breadcrumb",
+    "content": "// No dedicated breadcrumb API; a named custom event is the closest analog.\nawait SplunkRum.instance.customTracking.trackCustomEvent(\n  name: 'breadcrumb',\n  attributes: MutableAttributes(\n    attributes: {'value': MutableAttributeString(value: 'flutter-sample')},\n  ),\n);"
+  },
+  {
+    "name": "Custom data (global attributes)",
+    "content": "// Global attributes attach to all telemetry sent after they are set.\nfinal attributes = SplunkRum.instance.globalAttributes;\nawait attributes.setString(key: 'sample_user_tier', value: 'gold');\nawait attributes.setInt(key: 'sample_retry_count', value: 3);\nawait attributes.setBool(key: 'sample_premium_feature', value: true);"
+  },
+  {
+    "name": "Periodic screenshots",
+    "content": "// Screenshot capture is not part of the core SDK.\n// See the separate splunk_otel_flutter_session_replay package for\n// screen-recording session replay instead."
+  },
+  {
+    "name": "Instrumenting network calls",
+    "content": "// splunk_otel_flutter has no Dart-level tracked HTTP client; automatic\n// network instrumentation wraps native OkHttp/HttpURLConnection (Android)\n// and NSURLSession (iOS), not package:http.\nfinal client = http.Client();\nfinal response = await client.get(Uri.parse(url));"
+  },
+  {
+    "name": "Excluded URL patterns",
+    "content": "// iOS only: exclude matching URLs from native network tracing.\nNetworkInstrumentationModuleConfiguration(\n  ignoreURLs: [RegularExpression(pattern: 'https://internal\\\\.example\\\\.com/.*')],\n);\n// Android has no URL-exclusion API exposed by splunk_otel_flutter 1.2.0."
+  },
+  {
+    "name": "Network request timeout",
+    "content": "final response = await client\n    .get(Uri.parse(url))\n    .timeout(const Duration(seconds: 2));"
+  },
+  {
+    "name": "Reporting selected errors",
+    "content": "try {\n  await readRequiredFile();\n} catch (error, stackTrace) {\n  await SplunkRum.instance.customTracking.trackError(\n    error,\n    stackTrace: stackTrace,\n    handled: true,\n  );\n}"
+  },
+  {
+    "name": "ANR",
+    "content": "// No manual ANR trigger exists; block the engine thread so the native\n// ANR/app-hang watchdog (AnrModuleConfiguration, Android) detects it.\nif (kDebugMode) {\n  sleep(const Duration(seconds: 6));\n}"
+  },
+  {
+    "name": "Crash reporting",
+    "content": "// splunk_otel_flutter has no Dart-level API to force a native process\n// crash, so this invokes a small native MethodChannel (MainActivity.kt /\n// AppDelegate.swift) that raises a real exception outside Dart.\n// CrashReportsModuleConfiguration's native crash handler captures it and\n// uploads the report on the next app launch.\nconst _nativeCrashChannel = MethodChannel('splunk_sample/native_crash');\n\nif (kDebugMode || kProfileMode) {\n  await _nativeCrashChannel.invokeMethod<void>('crash');\n}"
+  },
+  {
+    "name": "Report all crashes",
+    "content": "// FlutterError.onError alone misses uncaught ASYNC errors.\n// Wrap runApp in a zone so those are reported too.\nrunZonedGuarded(\n  () => runApp(const MyApp()),\n  (error, stackTrace) => SplunkRum.instance.customTracking.trackError(\n    error,\n    stackTrace: stackTrace,\n    handled: false,\n    source: ErrorSource.source,\n  ),\n);\n\n// Example of an error that bypasses FlutterError.onError:\nif (kDebugMode) {\n  Future.microtask(() => throw StateError('Unhandled async error.'));\n}"
+  },
+  {
+    "name": "Session replay status",
+    "content": "final status = await SplunkSessionReplay.instance.getStatus();\n// status is one of: isRecording, notStarted, stopped,\n// belowMinSdkVersion, storageLimitReached, internalError, disabledBySampling.\nprint('Session replay status: ${status.name}');"
+  },
+  {
+    "name": "Session replay masking",
+    "content": "// Cover a rectangular region so it never appears in the replay.\nawait SplunkSessionReplay.instance.setRecordingMask(\n  mask: RecordingMask(\n    elements: [\n      MaskElement(\n        rect: const Rect.fromLTWH(0, 0, 200, 80),\n        type: MaskType.covering,\n      ),\n    ],\n  ),\n);\n\n// Clear the mask when it's no longer needed.\nawait SplunkSessionReplay.instance.setRecordingMask(mask: null);"
+  }
+]
